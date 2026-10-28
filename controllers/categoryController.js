@@ -14,6 +14,7 @@ exports.getAllCategories = async (req, res) => {
       return successResponse(res, "Categories fetched.", { categories: [] });
     }
     const categories = await Category.find({ isActive: true }).sort({ name: 1 });
+    res.set("Cache-Control", "public, s-maxage=60, stale-while-revalidate=300");
     return successResponse(res, "Categories fetched.", { categories });
   } catch {
     return successResponse(res, "Categories fetched.", { categories: [] });
@@ -30,6 +31,7 @@ exports.getCategory = async (req, res) => {
     }
     const category = await Category.findById(req.params.id);
     if (!category) return errorResponse(res, "Category not found.", 404);
+    res.set("Cache-Control", "public, s-maxage=60, stale-while-revalidate=300");
     return successResponse(res, "Category fetched.", { category });
   } catch {
     return errorResponse(res, "Category not found.", 404);

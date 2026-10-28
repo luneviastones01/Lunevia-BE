@@ -57,6 +57,9 @@ exports.getAllProducts = async (req, res) => {
       Product.countDocuments(query),
     ]);
 
+    // Cache at Vercel Edge CDN for 60s, stale-while-revalidate for 5 mins
+    res.set("Cache-Control", "public, s-maxage=60, stale-while-revalidate=300");
+
     return paginatedResponse(
       res,
       "Products fetched.",
@@ -86,6 +89,7 @@ exports.getProduct = async (req, res) => {
     }).populate("category", "name slug");
 
     if (!product) return errorResponse(res, "Product not found.", 404);
+    res.set("Cache-Control", "public, s-maxage=60, stale-while-revalidate=300");
     return successResponse(res, "Product fetched.", { product });
   } catch (err) {
     return errorResponse(res, "Product not found.", 404);
