@@ -62,15 +62,23 @@ exports.createCategory = async (req, res) => {
 exports.updateCategory = async (req, res) => {
   try {
     const { name, description, isActive } = req.body;
+    const target = req.params.id;
     const updates = {};
     if (name !== undefined) updates.name = name;
     if (description !== undefined) updates.description = description;
     if (isActive !== undefined) updates.isActive = isActive;
 
-    const category = await Category.findByIdAndUpdate(req.params.id, updates, {
-      new: true,
-      runValidators: true,
-    });
+    // Accept either ObjectId or category name as :id
+    let category;
+    if (mongoose.Types.ObjectId.isValid(target)) {
+      category = await Category.findByIdAndUpdate(target, updates, { new: true, runValidators: true });
+    } else {
+      category = await Category.findOneAndUpdate(
+        { name: new RegExp(`^${escapeRegex(decodeURIComponent(target).trim())}$`, "i") },
+        updates,
+        { new: true, runValidators: true }
+      );
+    }
     if (!category) return errorResponse(res, "Category not found.", 404);
     return successResponse(res, "Category updated.", { category });
   } catch (err) {
