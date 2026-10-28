@@ -127,8 +127,26 @@ exports.createProduct = async (req, res) => {
     }
   }
 
+  // Handle URL-based images if sent (array, comma-separated, or single)
+  if (req.body.images) {
+    const raw = Array.isArray(req.body.images) ? req.body.images : [req.body.images];
+    raw.forEach((u) => {
+      if (typeof u === "string") {
+        u.split(/[\n,]+/).forEach((link) => {
+          const trimmed = link.trim();
+          if (trimmed.startsWith("http") && !images.some((img) => img.url === trimmed)) {
+            images.push({ url: trimmed, alt: name });
+          }
+        });
+      }
+    });
+  }
+
   if (image || imageUrl) {
-    images.push({ url: image || imageUrl, alt: name });
+    const single = (image || imageUrl).trim();
+    if (single && !images.some((img) => img.url === single)) {
+      images.push({ url: single, alt: name });
+    }
   }
 
   if (images.length === 0) {
@@ -186,24 +204,43 @@ exports.updateProduct = async (req, res) => {
   }
 
   // Update or replace images if provided
+  const uploadedImages = [];
   if (req.files && req.files.length > 0) {
-    const newImages = [];
     for (const f of req.files) {
       // Direct stream upload to Cloudinary (no local disk storage)
       const cloudRes = await uploadBufferToCloudinary(f.buffer, f.originalname);
       if (cloudRes && cloudRes.url) {
-        newImages.push({
+        uploadedImages.push({
           url: cloudRes.url,
           publicId: cloudRes.publicId,
           alt: product.name,
         });
       }
     }
-    if (newImages.length > 0) {
-      product.images = newImages;
-    }
+  }
+
+  // Handle URL or existing images
+  const urlImages = [];
+  if (req.body.images) {
+    const raw = Array.isArray(req.body.images) ? req.body.images : [req.body.images];
+    raw.forEach((u) => {
+      if (typeof u === "string") {
+        u.split(/[\n,]+/).forEach((link) => {
+          const trimmed = link.trim();
+          if (trimmed.startsWith("http") && !urlImages.some((img) => img.url === trimmed)) {
+            urlImages.push({ url: trimmed, alt: product.name });
+          }
+        });
+      }
+    });
   } else if (req.body.image || req.body.imageUrl) {
-    product.images = [{ url: req.body.image || req.body.imageUrl, alt: product.name }];
+    const single = (req.body.image || req.body.imageUrl).trim();
+    if (single) urlImages.push({ url: single, alt: product.name });
+  }
+
+  const combinedImages = [...urlImages, ...uploadedImages];
+  if (combinedImages.length > 0) {
+    product.images = combinedImages;
   }
 
   await product.save();

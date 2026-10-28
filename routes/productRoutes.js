@@ -24,7 +24,7 @@ router.use(adminAuth);
 router.post(
   "/",
   uploadLimiter,
-  uploadProductImage.array("images", 6),
+  uploadProductImage.array("images", 12),
   productRules,
   validate,
   productController.createProduct
@@ -33,7 +33,7 @@ router.post(
 router.patch(
   "/:id",
   uploadLimiter,
-  uploadProductImage.array("images", 6),
+  uploadProductImage.array("images", 12),
   validate,
   productController.updateProduct
 );
