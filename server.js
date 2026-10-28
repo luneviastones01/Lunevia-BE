@@ -70,6 +70,12 @@ const customOrigins = (process.env.FRONTEND_URL || "")
 
 const allowedOrigins = [
   ...customOrigins,
+  "https://www.shoplunévia.com",
+  "https://shoplunévia.com",
+  "https://www.xn--shoplunvia-h7a.com",
+  "https://xn--shoplunvia-h7a.com",
+  "https://luneviashop.vercel.app",
+  "https://lunevia-fe.vercel.app",
   "http://localhost:8080",
   "http://localhost:5173",
   "http://localhost:3000",
