@@ -47,9 +47,7 @@ if (!process.env.VERCEL) {
   }
 }
 
-// ── Connect to MongoDB ────────────────────────────────────────
-connectDB();
-
+// ── Initialize Express ────────────────────────────────────────
 const app = express();
 
 // ════════════════════════════════════════════════════════════
@@ -134,13 +132,29 @@ app.use(
 // ════════════════════════════════════════════════════════════
 // LOGGING
 // ════════════════════════════════════════════════════════════
-if (process.env.NODE_ENV === "development") {
+if (process.env.NODE_ENV === "development" || process.env.VERCEL) {
   app.use(morgan("dev"));
 } else {
-  // Log to file in production
-  const accessLogStream = fs.createWriteStream(path.join(logsDir, "access.log"), { flags: "a" });
-  app.use(morgan("combined", { stream: accessLogStream }));
+  try {
+    const logsDir = path.join(__dirname, "logs");
+    const accessLogStream = fs.createWriteStream(path.join(logsDir, "access.log"), { flags: "a" });
+    app.use(morgan("combined", { stream: accessLogStream }));
+  } catch {
+    app.use(morgan("dev"));
+  }
 }
+
+// ════════════════════════════════════════════════════════════
+// DATABASE CONNECTION MIDDLEWARE (ensures MongoDB is ready on serverless)
+// ════════════════════════════════════════════════════════════
+app.use(async (_req, _res, next) => {
+  try {
+    await connectDB();
+  } catch {
+    // proceed to let routes handle offline/fallback modes
+  }
+  next();
+});
 
 // ════════════════════════════════════════════════════════════
 // HEALTH CHECK

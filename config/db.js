@@ -1,37 +1,37 @@
 const mongoose = require("mongoose");
 const logger = require("../utils/logger");
 
+let cachedPromise = null;
+
 const connectDB = async () => {
-  if (mongoose.connection.readyState >= 1) {
-    return;
+  if (mongoose.connection.readyState === 1) {
+    return mongoose.connection;
   }
 
-  // Prevent long 10s buffering timeouts when offline
-  mongoose.set("bufferCommands", false);
+  if (cachedPromise) {
+    return cachedPromise;
+  }
 
-  try {
-    const conn = await mongoose.connect(process.env.MONGO_URI, {
-      serverSelectionTimeoutMS: 5000,
+  if (!process.env.MONGO_URI) {
+    logger.warn("MONGO_URI environment variable is not defined");
+    return null;
+  }
+
+  cachedPromise = mongoose
+    .connect(process.env.MONGO_URI, {
+      serverSelectionTimeoutMS: 8000,
+    })
+    .then((conn) => {
+      logger.info(`MongoDB Connected: ${conn.connection.host}`);
+      return conn;
+    })
+    .catch((err) => {
+      cachedPromise = null;
+      logger.error(`MongoDB connection error: ${err.message}`);
+      throw err;
     });
 
-    logger.info(`MongoDB Connected: ${conn.connection.host}`);
-
-    // Graceful shutdown (only for persistent server processes)
-    if (!process.env.VERCEL) {
-      process.on("SIGINT", async () => {
-        await mongoose.connection.close();
-        logger.info("MongoDB disconnected on app termination");
-        process.exit(0);
-      });
-    }
-  } catch (error) {
-    logger.error(`MongoDB connection error: ${error.message}`);
-    if (process.env.NODE_ENV === "production" && !process.env.VERCEL) {
-      process.exit(1);
-    } else {
-      logger.warn("⚠️ Running backend in offline/fallback mode (MongoDB unavailable). Connect MongoDB to persist data.");
-    }
-  }
+  return cachedPromise;
 };
 
 module.exports = connectDB;
