@@ -8,14 +8,11 @@ const { protect } = require("../middleware/auth");
 const { authLimiter, adminPinLimiter } = require("../middleware/rateLimiter");
 const { validate } = require("../middleware/validate");
 const {
-  createAdminSession,
   verifyAdminSession,
   clearAllAdminSessions,
-  getActiveSession,
-  checkSessionLock,
 } = require("../utils/adminSession");
 
-// ── Validation rules ─────────────────────────────────────────
+// ── Validation rules ──────────────────────────────────────────────────────────
 const signupRules = [
   body("name").trim().notEmpty().withMessage("Name is required").isLength({ max: 60 }),
   body("email").isEmail().normalizeEmail().withMessage("Valid email required"),
@@ -35,7 +32,7 @@ const loginRules = [
   body("password").notEmpty().withMessage("Password is required"),
 ];
 
-// ── Routes ───────────────────────────────────────────────────
+// ── Routes ────────────────────────────────────────────────────────────────────
 router.post("/signup", authLimiter, signupRules, validate, authController.signup);
 router.post("/login",  authLimiter, loginRules,  validate, authController.login);
 router.post("/refresh", authController.refreshToken);
@@ -53,13 +50,9 @@ router.get(
   authController.googleCallback
 );
 
-// ── Check if Single Admin Session is Currently in Use ────────
-router.get("/session-status", async (_req, res) => {
-  const status = await checkSessionLock();
-  return res.status(200).json(status);
-});
-
-// ── Protected Admin Hidden PIN Verification (Strict Single Session) ──
+// ── Admin Passcode Verification ───────────────────────────────────────────────
+// Rate-limited: max 10 attempts / 15 min window (defined in rateLimiter)
+// Uses timing-safe compare to prevent timing attacks
 router.post("/verify-pin", adminPinLimiter, async (req, res) => {
   const { pin } = req.body;
   if (!pin || typeof pin !== "string") {
@@ -68,66 +61,43 @@ router.post("/verify-pin", adminPinLimiter, async (req, res) => {
 
   const adminPasscode = process.env.ADMIN_PASSCODE || "1234";
 
-  // Hash or pad to equal length buffers for timingSafeEqual
-  const pinHash = crypto.createHash("sha256").update(String(pin).trim()).digest();
+  const pinHash    = crypto.createHash("sha256").update(String(pin).trim()).digest();
   const actualHash = crypto.createHash("sha256").update(String(adminPasscode).trim()).digest();
+  const isMatch    = crypto.timingSafeEqual(pinHash, actualHash);
 
-  const isMatch = crypto.timingSafeEqual(pinHash, actualHash);
-
-  if (isMatch) {
-    const ip = req.headers["x-forwarded-for"] || req.socket?.remoteAddress || "";
-    const userAgent = req.headers["user-agent"] || "";
-
-    const sessionResult = await createAdminSession({ ip, userAgent });
-
-    if (sessionResult.locked) {
-      return res.status(409).json({
-        success: false,
-        locked: true,
-        message: sessionResult.message,
-        expiresAt: sessionResult.expiresAt,
-      });
-    }
-
-    return res.status(200).json({
-      success: true,
-      message: "Passcode verified",
-      sessionToken: sessionResult.token,
-      expiresAt: sessionResult.expiresAt,
-    });
+  if (!isMatch) {
+    return res.status(401).json({ success: false, message: "Invalid admin passcode" });
   }
 
-  return res.status(401).json({
-    success: false,
-    message: "Invalid admin passcode",
+  // Generate a signed encrypted session token valid for 7 days
+  const { createAdminSession } = require("../utils/adminSession");
+  const sessionResult = await createAdminSession({
+    ip:        req.headers["x-forwarded-for"] || req.socket?.remoteAddress || "",
+    userAgent: req.headers["user-agent"] || "",
+  });
+
+  return res.status(200).json({
+    success:      true,
+    message:      "Passcode verified",
+    sessionToken: sessionResult.token,
+    expiresAt:    sessionResult.expiresAt,
   });
 });
 
-// ── Verify Encrypted 7-Day Admin Session Token ───────────────
+// ── Verify Admin Session Token ────────────────────────────────────────────────
 router.post("/verify-session", async (req, res) => {
   const token = req.headers["x-admin-session"] || req.body?.sessionToken;
   const result = await verifyAdminSession(token);
   if (!result.valid) {
-    return res.status(401).json({
-      success: false,
-      valid: false,
-      message: result.reason || "Invalid or expired session",
-    });
+    return res.status(401).json({ success: false, valid: false, message: result.reason || "Invalid or expired session" });
   }
-  return res.status(200).json({
-    success: true,
-    valid: true,
-    expiresAt: result.session.expiresAt,
-  });
+  return res.status(200).json({ success: true, valid: true, expiresAt: result.session.expiresAt });
 });
 
-// ── Clear Active Admin Session (Logout) ──────────────────────
+// ── Admin Logout ──────────────────────────────────────────────────────────────
 router.post("/admin-logout", async (_req, res) => {
   await clearAllAdminSessions();
-  return res.status(200).json({
-    success: true,
-    message: "Admin session cleared. Another device may now log in.",
-  });
+  return res.status(200).json({ success: true, message: "Admin session cleared." });
 });
 
 module.exports = router;
