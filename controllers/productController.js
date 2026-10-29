@@ -127,12 +127,12 @@ exports.createProduct = async (req, res) => {
     }
   }
 
-  // Handle URL-based images if sent (array, comma-separated, or single)
+  // Handle URL-based images if sent (array, newline-separated, or single)
   if (req.body.images) {
     const raw = Array.isArray(req.body.images) ? req.body.images : [req.body.images];
     raw.forEach((u) => {
       if (typeof u === "string") {
-        u.split(/[\n,]+/).forEach((link) => {
+        u.split(/\r?\n+/).forEach((link) => {
           const trimmed = link.trim();
           if (trimmed.startsWith("http") && !images.some((img) => img.url === trimmed)) {
             images.push({ url: trimmed, alt: name });
@@ -144,7 +144,7 @@ exports.createProduct = async (req, res) => {
 
   if (image || imageUrl) {
     const single = (image || imageUrl).trim();
-    if (single && !images.some((img) => img.url === single)) {
+    if (single && single.startsWith("http") && !images.some((img) => img.url === single)) {
       images.push({ url: single, alt: name });
     }
   }
@@ -219,13 +219,13 @@ exports.updateProduct = async (req, res) => {
     }
   }
 
-  // Handle URL or existing images
+  // Handle URL or existing images (never split by comma because Cloudinary options use commas)
   const urlImages = [];
   if (req.body.images) {
     const raw = Array.isArray(req.body.images) ? req.body.images : [req.body.images];
     raw.forEach((u) => {
       if (typeof u === "string") {
-        u.split(/[\n,]+/).forEach((link) => {
+        u.split(/\r?\n+/).forEach((link) => {
           const trimmed = link.trim();
           if (trimmed.startsWith("http") && !urlImages.some((img) => img.url === trimmed)) {
             urlImages.push({ url: trimmed, alt: product.name });
@@ -235,7 +235,7 @@ exports.updateProduct = async (req, res) => {
     });
   } else if (req.body.image || req.body.imageUrl) {
     const single = (req.body.image || req.body.imageUrl).trim();
-    if (single) urlImages.push({ url: single, alt: product.name });
+    if (single && single.startsWith("http")) urlImages.push({ url: single, alt: product.name });
   }
 
   const combinedImages = [...urlImages, ...uploadedImages];
