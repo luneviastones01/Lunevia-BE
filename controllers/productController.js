@@ -57,8 +57,16 @@ exports.getAllProducts = async (req, res) => {
       Product.countDocuments(query),
     ]);
 
-    // Cache at Vercel Edge CDN for 60s, stale-while-revalidate for 5 mins
-    res.set("Cache-Control", "public, s-maxage=60, stale-while-revalidate=300");
+    // Cache at Vercel Edge CDN for production only; disable cache for local development
+    if (process.env.NODE_ENV === "production") {
+      if (process.env.NODE_ENV === "production") {
+      res.set("Cache-Control", "public, s-maxage=60, stale-while-revalidate=300");
+    } else {
+      res.set("Cache-Control", "no-store, no-cache, must-revalidate");
+    }
+    } else {
+      res.set("Cache-Control", "no-store, no-cache, must-revalidate");
+    }
 
     return paginatedResponse(
       res,
@@ -89,7 +97,11 @@ exports.getProduct = async (req, res) => {
     }).populate("category", "name slug");
 
     if (!product) return errorResponse(res, "Product not found.", 404);
-    res.set("Cache-Control", "public, s-maxage=60, stale-while-revalidate=300");
+    if (process.env.NODE_ENV === "production") {
+      res.set("Cache-Control", "public, s-maxage=60, stale-while-revalidate=300");
+    } else {
+      res.set("Cache-Control", "no-store, no-cache, must-revalidate");
+    }
     return successResponse(res, "Product fetched.", { product });
   } catch (err) {
     return errorResponse(res, "Product not found.", 404);
