@@ -59,11 +59,7 @@ exports.getAllProducts = async (req, res) => {
 
     // Cache at Vercel Edge CDN for production only; disable cache for local development
     if (process.env.NODE_ENV === "production") {
-      if (process.env.NODE_ENV === "production") {
       res.set("Cache-Control", "public, s-maxage=60, stale-while-revalidate=300");
-    } else {
-      res.set("Cache-Control", "no-store, no-cache, must-revalidate");
-    }
     } else {
       res.set("Cache-Control", "no-store, no-cache, must-revalidate");
     }
