@@ -6,6 +6,21 @@ const { successResponse, errorResponse, paginatedResponse } = require("../utils/
 const { getPagination, buildPaginationMeta } = require("../utils/paginate");
 const logger = require("../utils/logger");
 
+// Helper: Extract or return Cloudinary public ID from object or URL
+function getCloudinaryPublicId(img) {
+  if (!img) return null;
+  if (typeof img === "object" && img.publicId) return img.publicId;
+  const url = typeof img === "string" ? img : img.url;
+  if (!url || typeof url !== "string" || !url.includes("res.cloudinary.com")) return null;
+  const parts = url.split("?")[0].split("/upload/");
+  if (parts.length < 2) return null;
+  const segments = parts[1].split("/");
+  const vIndex = segments.findIndex((s) => /^v\d+$/.test(s));
+  const publicSegments = vIndex !== -1 ? segments.slice(vIndex + 1) : segments;
+  if (publicSegments.length === 0) return null;
+  return publicSegments.join("/").replace(/\.[^/.]+$/, "");
+}
+
 // ────────────────────────────────────────────────────────────
 // GET /api/products  — public, with filtering/search/pagination
 // ────────────────────────────────────────────────────────────
@@ -143,7 +158,7 @@ exports.createProduct = async (req, res) => {
         u.split(/\r?\n+/).forEach((link) => {
           const trimmed = link.trim();
           if (trimmed.startsWith("http") && !images.some((img) => img.url === trimmed)) {
-            images.push({ url: trimmed, alt: name });
+            images.push({ url: trimmed, publicId: getCloudinaryPublicId(trimmed), alt: name });
           }
         });
       }
@@ -153,7 +168,7 @@ exports.createProduct = async (req, res) => {
   if (image || imageUrl) {
     const single = (image || imageUrl).trim();
     if (single && single.startsWith("http") && !images.some((img) => img.url === single)) {
-      images.push({ url: single, alt: name });
+      images.push({ url: single, publicId: getCloudinaryPublicId(single), alt: name });
     }
   }
 
@@ -236,14 +251,14 @@ exports.updateProduct = async (req, res) => {
         u.split(/\r?\n+/).forEach((link) => {
           const trimmed = link.trim();
           if (trimmed.startsWith("http") && !urlImages.some((img) => img.url === trimmed)) {
-            urlImages.push({ url: trimmed, alt: product.name });
+            urlImages.push({ url: trimmed, publicId: getCloudinaryPublicId(trimmed), alt: product.name });
           }
         });
       }
     });
   } else if (req.body.image || req.body.imageUrl) {
     const single = (req.body.image || req.body.imageUrl).trim();
-    if (single && single.startsWith("http")) urlImages.push({ url: single, alt: product.name });
+    if (single && single.startsWith("http")) urlImages.push({ url: single, publicId: getCloudinaryPublicId(single), alt: product.name });
   }
 
   const combinedImages = [...urlImages, ...uploadedImages];
@@ -263,12 +278,20 @@ exports.deleteProduct = async (req, res) => {
   const product = await Product.findById(req.params.id);
   if (!product) return errorResponse(res, "Product not found.", 404);
 
-  // Delete images from Cloudinary
-  const deletePromises = product.images
-    .filter((img) => img.publicId)
-    .map((img) => cloudinary.uploader.destroy(img.publicId));
+  // Delete all product images from Cloudinary (both stored publicIds and extracted from URLs)
+  const allImages = Array.isArray(product.images) ? [...product.images] : [];
+  if (product.image) allImages.push(product.image);
 
-  await Promise.allSettled(deletePromises);
+  const publicIds = allImages.map(getCloudinaryPublicId).filter(Boolean);
+  if (publicIds.length > 0) {
+    const deletePromises = publicIds.map((pid) =>
+      cloudinary.uploader.destroy(pid).catch((err) => {
+        logger.warn(`Cloudinary delete warning for ${pid}: ${err.message}`);
+      })
+    );
+    await Promise.allSettled(deletePromises);
+  }
+
   await Product.findByIdAndDelete(req.params.id);
 
   return successResponse(res, "Product deleted.");
@@ -285,7 +308,9 @@ exports.deleteProductImage = async (req, res) => {
   const product = await Product.findById(req.params.id);
   if (!product) return errorResponse(res, "Product not found.", 404);
 
-  const imageIndex = product.images.findIndex((img) => img.publicId === decodedPublicId);
+  const imageIndex = product.images.findIndex(
+    (img) => img.publicId === decodedPublicId || getCloudinaryPublicId(img) === decodedPublicId
+  );
   if (imageIndex === -1) return errorResponse(res, "Image not found.", 404);
 
   // Prevent deleting the last image
