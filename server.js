@@ -273,7 +273,7 @@ if (fs.existsSync(frontendDistPath)) {
 
       let pageTitle = "LUNÉVIA — Curated Natural Agate & Mineral Specimens";
       let pageDesc = "Nature's Artistry, Refined — Discover rare, ethically sourced agate slices, amethyst geodes, and natural mineral specimens for luxury collectors.";
-      let pageImage = `${baseUrl}/hero-agate.jpg`;
+      let pageImage = `${baseUrl}/hero-agate.webp`;
       let pageType = "website";
       let jsonLd = null;
       let isNoIndex = req.path.startsWith("/catalog-admin");
