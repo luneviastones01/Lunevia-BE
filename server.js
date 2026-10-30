@@ -182,6 +182,38 @@ app.use("/api/categories", categoryRoutes);
 app.use("/api/admin",      adminRoutes);
 app.use("/api/settings",   settingsRoutes);
 
+// Bootstrap Endpoint: combines products, categories, and homepage settings in 1 request
+app.get("/api/bootstrap", async (_req, res) => {
+  try {
+    if (mongoose.connection.readyState !== 1) {
+      return res.json({ products: [], categories: [], homepageConfig: null });
+    }
+    const [dbProducts, dbCategories, dbSettings] = await Promise.all([
+      Product.find({ isActive: true })
+        .populate("category", "name slug")
+        .sort({ createdAt: -1 })
+        .limit(100)
+        .lean(),
+      Category.find({ isActive: true }).sort({ name: 1 }).lean(),
+      Settings.findOne({ key: "homepage" }).lean(),
+    ]);
+
+    if (process.env.NODE_ENV === "production") {
+      res.set("Cache-Control", "public, s-maxage=60, stale-while-revalidate=300");
+    } else {
+      res.set("Cache-Control", "no-store, no-cache, must-revalidate");
+    }
+
+    return res.json({
+      products: dbProducts || [],
+      categories: dbCategories || [],
+      homepageConfig: dbSettings?.value || null,
+    });
+  } catch {
+    return res.json({ products: [], categories: [], homepageConfig: null });
+  }
+});
+
 // ════════════════════════════════════════════════════════════
 // SEO: SITEMAP & ROBOTS.TXT
 // ════════════════════════════════════════════════════════════
