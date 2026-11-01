@@ -229,6 +229,8 @@ app.get("/sitemap.xml", async (req, res) => {
     xml += `  <url><loc>${baseUrl}/shop</loc><changefreq>daily</changefreq><priority>0.9</priority></url>\n`;
     xml += `  <url><loc>${baseUrl}/about</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>\n`;
     xml += `  <url><loc>${baseUrl}/contact</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>\n`;
+    xml += `  <url><loc>${baseUrl}/privacy-policy</loc><changefreq>yearly</changefreq><priority>0.5</priority></url>\n`;
+    xml += `  <url><loc>${baseUrl}/terms-and-conditions</loc><changefreq>yearly</changefreq><priority>0.5</priority></url>\n`;
     for (const p of products) {
       const idOrSlug = p.slug || p._id;
       const modDate = p.updatedAt ? new Date(p.updatedAt).toISOString().split("T")[0] : new Date().toISOString().split("T")[0];
