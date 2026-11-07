@@ -273,8 +273,8 @@ if (fs.existsSync(frontendDistPath)) {
       const baseUrl = process.env.FRONTEND_URL || `${req.protocol}://${req.get("host")}`;
       const currentUrl = `${baseUrl}${req.originalUrl}`;
 
-      let pageTitle = "LUNÉVIA — Curated Natural Agate & Mineral Specimens";
-      let pageDesc = "Nature's Artistry, Refined — Discover rare, ethically sourced agate slices, amethyst geodes, and natural mineral specimens for luxury collectors.";
+      let pageTitle = "LUNÉVIA — Curated Natural Agate & Gemstone Products";
+      let pageDesc = "Nature's Artistry, Refined — Discover rare, ethically sourced agate slices, amethyst geodes, and natural gemstone products for luxury collectors.";
       let pageImage = `${baseUrl}/hero-agate.webp`;
       let pageType = "website";
       let jsonLd = null;
@@ -294,7 +294,7 @@ if (fs.existsSync(frontendDistPath)) {
             id: String(p._id),
             name: p.name,
             price: p.price || 0,
-            category: p.category?.name || "Specimen",
+            category: p.category?.name || "Product",
             description: p.description || "",
             image: (p.images && p.images[0]?.url) || "/placeholder.svg",
             featured: Boolean(p.featured),
@@ -315,9 +315,9 @@ if (fs.existsSync(frontendDistPath)) {
         const query = mongoose.Types.ObjectId.isValid(idOrSlug) ? { _id: idOrSlug } : { slug: idOrSlug };
         const product = await Product.findOne(query).populate("category", "name").lean();
         if (product) {
-          const catName = product.category?.name || "Specimen";
+          const catName = product.category?.name || "Product";
           pageTitle = `${product.name} — ${catName} | LUNÉVIA`;
-          pageDesc = product.description || `Exquisite natural ${product.name} specimen. Ethically sourced and handcrafted agate & mineral gemstone.`;
+          pageDesc = product.description || `Exquisite natural ${product.name} piece. Ethically sourced and handcrafted agate & mineral gemstone.`;
           if (product.images && product.images[0]?.url) {
             pageImage = product.images[0].url;
           }
@@ -341,14 +341,14 @@ if (fs.existsSync(frontendDistPath)) {
           };
         }
       } else if (req.path === "/shop") {
-        pageTitle = "Curated Specimen Catalogue | LUNÉVIA";
-        pageDesc = "Browse LUNÉVIA's curated collection of natural agate slices, amethyst geodes, and rare mineral specimens.";
+        pageTitle = "Curated Product Catalogue | LUNÉVIA";
+        pageDesc = "Browse LUNÉVIA's curated collection of natural agate slices, amethyst geodes, and rare gemstone products.";
       } else if (req.path === "/about") {
         pageTitle = "Our Story & Geological Heritage | LUNÉVIA";
         pageDesc = "Learn about LUNÉVIA's mission, ethical sourcing practices, and the geological mastery behind our handcrafted agate collection.";
       } else if (req.path === "/contact") {
-        pageTitle = "Contact Our Gemologist Concierge | LUNÉVIA";
-        pageDesc = "Inquire about custom gemstone curations, specimen sourcing, and worldwide delivery. Connect with the LUNÉVIA showroom.";
+        pageTitle = "Contact Our Team | LUNÉVIA";
+        pageDesc = "Inquire about custom gemstone curations, product sourcing, and worldwide delivery. Connect with the LUNÉVIA showroom.";
       }
 
       // Execute full Server-Side Rendering (SSR) if entry-server bundle exists

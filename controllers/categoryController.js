@@ -117,7 +117,7 @@ exports.deleteCategory = async (req, res) => {
     if (productCount > 0) {
       return errorResponse(
         res,
-        `Cannot delete "${category.name}". ${productCount} specimen(s) are linked to it.`,
+        `Cannot delete "${category.name}". ${productCount} product(s) are linked to it.`,
         400
       );
     }
