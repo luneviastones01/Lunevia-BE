@@ -219,25 +219,28 @@ app.get("/api/bootstrap", async (_req, res) => {
 // ════════════════════════════════════════════════════════════
 app.get("/sitemap.xml", async (req, res) => {
   try {
-    const baseUrl = process.env.FRONTEND_URL || `${req.protocol}://${req.get("host")}`;
+    let baseUrl = process.env.FRONTEND_URL || "https://www.xn--shoplunvia-h7a.com";
+    if (baseUrl.includes("shoplunévia.com") || baseUrl.includes("shoplunevia.com")) {
+      baseUrl = "https://www.xn--shoplunvia-h7a.com";
+    }
     let products = [];
     if (mongoose.connection.readyState === 1) {
       products = await Product.find({ isActive: true }).select("_id slug updatedAt").lean();
     }
     let xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;
-    xml += `  <url><loc>${baseUrl}/</loc><changefreq>daily</changefreq><priority>1.0</priority></url>\n`;
-    xml += `  <url><loc>${baseUrl}/shop</loc><changefreq>daily</changefreq><priority>0.9</priority></url>\n`;
-    xml += `  <url><loc>${baseUrl}/about</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>\n`;
-    xml += `  <url><loc>${baseUrl}/contact</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>\n`;
-    xml += `  <url><loc>${baseUrl}/privacy-policy</loc><changefreq>yearly</changefreq><priority>0.5</priority></url>\n`;
-    xml += `  <url><loc>${baseUrl}/terms-and-conditions</loc><changefreq>yearly</changefreq><priority>0.5</priority></url>\n`;
+    xml += `  <url><loc>${baseUrl}/</loc></url>\n`;
+    xml += `  <url><loc>${baseUrl}/shop</loc></url>\n`;
+    xml += `  <url><loc>${baseUrl}/about</loc></url>\n`;
+    xml += `  <url><loc>${baseUrl}/contact</loc></url>\n`;
+    xml += `  <url><loc>${baseUrl}/privacy-policy</loc></url>\n`;
+    xml += `  <url><loc>${baseUrl}/terms-and-conditions</loc></url>\n`;
     for (const p of products) {
       const idOrSlug = p.slug || p._id;
       const modDate = p.updatedAt ? new Date(p.updatedAt).toISOString().split("T")[0] : new Date().toISOString().split("T")[0];
-      xml += `  <url><loc>${baseUrl}/product/${idOrSlug}</loc><lastmod>${modDate}</lastmod><changefreq>weekly</changefreq><priority>0.8</priority></url>\n`;
+      xml += `  <url><loc>${baseUrl}/product/${idOrSlug}</loc><lastmod>${modDate}</lastmod></url>\n`;
     }
     xml += `</urlset>`;
-    res.header("Content-Type", "application/xml");
+    res.header("Content-Type", "application/xml; charset=utf-8");
     return res.send(xml);
   } catch {
     res.status(500).send("Error generating sitemap");
@@ -245,9 +248,8 @@ app.get("/sitemap.xml", async (req, res) => {
 });
 
 app.get("/robots.txt", (req, res) => {
-  const baseUrl = process.env.FRONTEND_URL || `${req.protocol}://${req.get("host")}`;
   res.type("text/plain");
-  res.send(`User-agent: *\nAllow: /\nDisallow: /catalog-admin\nDisallow: /api/\n\nSitemap: ${baseUrl}/sitemap.xml\n`);
+  res.send(`User-agent: *\nAllow: /\nDisallow: /catalog-admin\nDisallow: /admin\nDisallow: /api/\n\nSitemap: https://www.xn--shoplunvia-h7a.com/sitemap.xml\n`);
 });
 
 // ════════════════════════════════════════════════════════════
