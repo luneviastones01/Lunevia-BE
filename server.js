@@ -81,13 +81,20 @@ const allowedOrigins = [
   "http://localhost:3000",
 ];
 
+const isAllowedOrigin = (origin) => {
+  if (!origin) return true;
+  const clean = origin.replace(/\/+$/, "");
+  if (allowedOrigins.includes(clean)) return true;
+  if (/https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(clean)) return true;
+  if (/^https:\/\/([a-z0-9-]+\.)*(xn--shoplunvia-h7a\.com|shoplun[ée]via\.com|vercel\.app)$/i.test(clean)) return true;
+  return false;
+};
+
 app.use(
   cors({
     origin: (origin, callback) => {
       // Allow requests with no origin (mobile apps, curl, SSR, same-origin)
-      if (!origin) return callback(null, true);
-      const cleanOrigin = origin.replace(/\/+$/, "");
-      if (allowedOrigins.includes(cleanOrigin) || process.env.NODE_ENV !== "production") {
+      if (isAllowedOrigin(origin) || process.env.NODE_ENV !== "production") {
         return callback(null, true);
       }
       callback(new Error(`CORS policy blocked: ${origin}`));
@@ -249,7 +256,7 @@ app.get("/sitemap.xml", async (req, res) => {
 
 app.get("/robots.txt", (req, res) => {
   res.type("text/plain");
-  res.send(`User-agent: *\nAllow: /\nDisallow: /catalog-admin\nDisallow: /admin\nDisallow: /api/\n\nSitemap: https://www.xn--shoplunvia-h7a.com/sitemap.xml\n`);
+  res.send(`User-agent: *\nAllow: /\nDisallow: /catalog-admin\nDisallow: /admin\n\nSitemap: https://www.xn--shoplunvia-h7a.com/sitemap.xml\n`);
 });
 
 // ════════════════════════════════════════════════════════════
