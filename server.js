@@ -299,7 +299,7 @@ if (fs.existsSync(frontendDistPath)) {
           const [dbProducts, dbCategories, dbSettings] = await Promise.all([
             Product.find({ isActive: true }).populate("category", "name slug").lean(),
             Category.find({ isActive: true }).sort({ name: 1 }).lean(),
-            Settings.findOne({ key: "homepage_layout" }).lean(),
+            Settings.findOne({ key: "homepage" }).lean(),
           ]);
 
           initialData.products = (dbProducts || []).map((p) => ({
