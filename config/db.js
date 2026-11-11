@@ -8,9 +8,12 @@ const connectDB = async () => {
     return mongoose.connection;
   }
 
-  if (cachedPromise) {
+  // Only reuse cached promise if connection is actively connecting
+  if (cachedPromise && mongoose.connection.readyState === 2) {
     return cachedPromise;
   }
+
+  cachedPromise = null;
 
   if (!process.env.MONGO_URI) {
     logger.warn("MONGO_URI environment variable is not defined");

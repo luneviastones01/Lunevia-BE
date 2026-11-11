@@ -193,7 +193,10 @@ app.use("/api/settings",   settingsRoutes);
 app.get("/api/bootstrap", async (_req, res) => {
   try {
     if (mongoose.connection.readyState !== 1) {
-      return res.json({ products: [], categories: [], homepageConfig: null });
+      await connectDB();
+    }
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(503).json({ error: "Database connecting", products: [], categories: [], homepageConfig: null });
     }
     const [dbProducts, dbCategories, dbSettings] = await Promise.all([
       Product.find({ isActive: true })

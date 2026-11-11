@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const connectDB = require("../config/db");
 const Product = require("../models/Product");
 const Category = require("../models/Category");
 const { cloudinary, uploadBufferToCloudinary } = require("../config/cloudinary");
@@ -26,6 +27,9 @@ function getCloudinaryPublicId(img) {
 // ────────────────────────────────────────────────────────────
 exports.getAllProducts = async (req, res) => {
   try {
+    if (mongoose.connection.readyState !== 1) {
+      await connectDB();
+    }
     if (mongoose.connection.readyState !== 1) {
       return paginatedResponse(res, "Offline mode.", { products: [] }, buildPaginationMeta(0, 1, 10));
     }

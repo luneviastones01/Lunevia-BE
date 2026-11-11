@@ -1,5 +1,6 @@
 const Category = require("../models/Category");
 const Product = require("../models/Product");
+const connectDB = require("../config/db");
 const mongoose = require("mongoose");
 const { successResponse, errorResponse } = require("../utils/apiResponse");
 
@@ -10,6 +11,9 @@ const escapeRegex = (str) => String(str || "").replace(/[.*+?^${}()|[\]\\]/g, "\
 // ────────────────────────────────────────────────────────────
 exports.getAllCategories = async (req, res) => {
   try {
+    if (mongoose.connection.readyState !== 1) {
+      await connectDB();
+    }
     if (mongoose.connection.readyState !== 1) {
       return successResponse(res, "Categories fetched.", { categories: [] });
     }
