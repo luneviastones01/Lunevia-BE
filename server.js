@@ -33,6 +33,7 @@ const productRoutes  = require("./routes/productRoutes");
 const categoryRoutes = require("./routes/categoryRoutes");
 const adminRoutes    = require("./routes/adminRoutes");
 const settingsRoutes = require("./routes/settingsRoutes");
+const feedRoutes     = require("./routes/feedRoutes");
 
 // ── Ensure directories exist (local persistent environments only) ─────────
 if (!process.env.VERCEL) {
@@ -188,6 +189,7 @@ app.use("/api/products",   productRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api/admin",      adminRoutes);
 app.use("/api/settings",   settingsRoutes);
+app.use("/api/feed",       feedRoutes);
 
 // Bootstrap Endpoint: combines products, categories, and homepage settings in 1 request
 app.get("/api/bootstrap", async (_req, res) => {
@@ -227,17 +229,26 @@ app.get("/api/bootstrap", async (_req, res) => {
 // ════════════════════════════════════════════════════════════
 // SEO: SITEMAP & ROBOTS.TXT
 // ════════════════════════════════════════════════════════════
+const escapeXml = (str) =>
+  String(str || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+
 app.get("/sitemap.xml", async (req, res) => {
   try {
-    let baseUrl = process.env.FRONTEND_URL || "https://www.xn--shoplunvia-h7a.com";
-    if (baseUrl.includes("shoplunévia.com") || baseUrl.includes("shoplunevia.com")) {
-      baseUrl = "https://www.xn--shoplunvia-h7a.com";
+    if (mongoose.connection.readyState !== 1) {
+      await connectDB();
     }
+    const baseUrl = "https://www.xn--shoplunvia-h7a.com";
     let products = [];
     if (mongoose.connection.readyState === 1) {
-      products = await Product.find({ isActive: true }).select("_id slug updatedAt").lean();
+      products = await Product.find({ isActive: true }).select("_id slug name description images updatedAt").lean();
     }
-    let xml = `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;
+    let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+    xml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">\n`;
     xml += `  <url><loc>${baseUrl}/</loc></url>\n`;
     xml += `  <url><loc>${baseUrl}/shop</loc></url>\n`;
     xml += `  <url><loc>${baseUrl}/about</loc></url>\n`;
@@ -247,10 +258,28 @@ app.get("/sitemap.xml", async (req, res) => {
     for (const p of products) {
       const idOrSlug = p.slug || p._id;
       const modDate = p.updatedAt ? new Date(p.updatedAt).toISOString().split("T")[0] : new Date().toISOString().split("T")[0];
-      xml += `  <url><loc>${baseUrl}/product/${idOrSlug}</loc><lastmod>${modDate}</lastmod></url>\n`;
+      xml += `  <url>\n`;
+      xml += `    <loc>${baseUrl}/product/${idOrSlug}</loc>\n`;
+      xml += `    <lastmod>${modDate}</lastmod>\n`;
+      if (Array.isArray(p.images) && p.images.length > 0) {
+        for (const img of p.images) {
+          const imgUrl = typeof img === "string" ? img : img?.url;
+          if (imgUrl) {
+            xml += `    <image:image>\n`;
+            xml += `      <image:loc>${escapeXml(imgUrl)}</image:loc>\n`;
+            xml += `      <image:title>${escapeXml(p.name)}</image:title>\n`;
+            if (p.description) {
+              xml += `      <image:caption>${escapeXml(p.description.slice(0, 200))}</image:caption>\n`;
+            }
+            xml += `    </image:image>\n`;
+          }
+        }
+      }
+      xml += `  </url>\n`;
     }
     xml += `</urlset>`;
     res.header("Content-Type", "application/xml; charset=utf-8");
+    res.set("Cache-Control", "public, s-maxage=300, stale-while-revalidate=600");
     return res.send(xml);
   } catch {
     res.status(500).send("Error generating sitemap");
@@ -330,24 +359,29 @@ if (fs.existsSync(frontendDistPath)) {
           const catName = product.category?.name || "Product";
           pageTitle = `${product.name} — ${catName} | LUNÉVIA`;
           pageDesc = product.description || `Exquisite natural ${product.name} piece. Ethically sourced and handcrafted agate & mineral gemstone.`;
-          if (product.images && product.images[0]?.url) {
-            pageImage = product.images[0].url;
+          const allImages = (product.images || []).map((img) => (typeof img === "string" ? img : img?.url)).filter(Boolean);
+          if (allImages.length > 0) {
+            pageImage = allImages[0];
           }
           pageType = "product";
+          const canonicalProductUrl = `https://www.xn--shoplunvia-h7a.com/product/${idOrSlug}`;
           jsonLd = {
             "@context": "https://schema.org",
             "@type": "Product",
             name: product.name,
             category: catName,
-            image: [pageImage],
+            image: allImages.length > 0 ? allImages : [pageImage],
             description: pageDesc,
+            sku: String(product._id),
+            mpn: String(product._id),
             brand: { "@type": "Brand", name: "LUNÉVIA" },
             offers: {
               "@type": "Offer",
               availability: "https://schema.org/InStock",
-              price: product.price || "0",
+              itemCondition: "https://schema.org/NewCondition",
+              price: product.price && product.price > 0 ? String(product.price) : "0",
               priceCurrency: "USD",
-              url: currentUrl,
+              url: canonicalProductUrl,
               seller: { "@type": "Organization", name: "LUNÉVIA" },
             },
           };
