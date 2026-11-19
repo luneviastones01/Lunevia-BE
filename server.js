@@ -333,6 +333,7 @@ if (fs.existsSync(frontendDistPath)) {
 
           initialData.products = (dbProducts || []).map((p) => ({
             id: String(p._id),
+            slug: p.slug || (p.name ? p.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") : String(p._id)),
             name: p.name,
             price: p.price || 0,
             category: p.category?.name || "Product",
@@ -357,6 +358,20 @@ if (fs.existsSync(frontendDistPath)) {
         const product = await Product.findOne(query).populate("category", "name").lean();
         if (product) {
           const catName = product.category?.name || "Product";
+          const prodId = String(product._id);
+          const prodSlug = product.slug || (product.name ? product.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") : prodId);
+          if (!initialData.products.some((p) => p.id === prodId)) {
+            initialData.products.push({
+              id: prodId,
+              slug: prodSlug,
+              name: product.name,
+              price: product.price || 0,
+              category: catName,
+              description: product.description || "",
+              image: (product.images && product.images[0]?.url) || "/placeholder.svg",
+              featured: Boolean(product.featured),
+            });
+          }
           pageTitle = `${product.name} — ${catName} | LUNÉVIA`;
           pageDesc = product.description || `Exquisite natural ${product.name} piece. Ethically sourced and handcrafted agate & mineral gemstone.`;
           const allImages = (product.images || []).map((img) => (typeof img === "string" ? img : img?.url)).filter(Boolean);
