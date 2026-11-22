@@ -410,6 +410,12 @@ if (fs.existsSync(frontendDistPath)) {
       } else if (req.path === "/contact") {
         pageTitle = "Contact Our Team | LUNÉVIA";
         pageDesc = "Inquire about custom gemstone curations, product sourcing, and worldwide delivery. Connect with the LUNÉVIA showroom.";
+      } else if (req.path === "/terms-and-conditions") {
+        pageTitle = "Terms & Conditions | LUNÉVIA";
+        pageDesc = "Review the collector terms, mineral authenticity standards, and shipping conditions at LUNÉVIA.";
+      } else if (req.path === "/privacy-policy") {
+        pageTitle = "Privacy Policy | LUNÉVIA";
+        pageDesc = "Review LUNÉVIA collector confidentiality, data protection, and privacy standards.";
       }
 
       // Execute full Server-Side Rendering (SSR) if entry-server bundle exists
